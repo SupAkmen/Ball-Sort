@@ -13,7 +13,10 @@ public class GameGraphic : MonoBehaviour
 
     public BallGraphic prefabBallGraphics;
 
-    public BottleGraphic prefabBottleGraphics;
+    public BottleGraphic prefabBottle4BallGraphics;
+    public BottleGraphic prefabBottle5BallGraphics;
+
+    private BottleGraphic prefabBottleGraphics;
 
     private BallGraphic previewBall;
 
@@ -54,39 +57,58 @@ public class GameGraphic : MonoBehaviour
         }
     }
 
-    public void CreateBottleGraphic(List<Game.Bottle> bottles)
+   public void CreateBottleGraphic(List<Game.Bottle> bottles)
+{
+    ClearBottleGraphics(); // Ensure we clear any old bottles before creating new ones.
+
+    Vector3 pos = bottleStartPos; // Start position for the first bottle
+    int bottlesPerRow = 4; // Max number of bottles per row
+    int currentColumn = 0; // Track how many bottles are placed in the current row
+
+    foreach (Game.Bottle b in bottles)
     {
-        foreach (Game.Bottle b in bottles)
-        {
-            BottleGraphic bg = Instantiate(prefabBottleGraphics);
-
-
-            bottleGraphics.Add(bg);
-
-            List<int> ballTypes = new List<int>();
-
-            foreach (var ball in b.balls)
+        if(GameLevelReader.instance.GetBallPerBottle() == 4)
+         {
+           prefabBottleGraphics = prefabBottle4BallGraphics;
+         }
+        else if(GameLevelReader.instance.GetBallPerBottle() == 5)
             {
-                ballTypes.Add(ball.type);
+                prefabBottleGraphics = prefabBottle5BallGraphics;
             }
+        BottleGraphic bg = Instantiate(prefabBottleGraphics);
+        bottleGraphics.Add(bg);
 
-            bg.SetGraphic(ballTypes.ToArray());
+        List<int> ballTypes = new List<int>();
 
+        foreach (var ball in b.balls)
+        {
+            ballTypes.Add(ball.type);
         }
 
-        Vector3 pos = bottleStartPos;
+        bg.SetGraphic(ballTypes.ToArray());
 
-        for(int i=0; i<bottleGraphics.Count; i++)
+        // Set bottle position
+        bg.transform.position = pos;
+        bg.index = bottleGraphics.Count - 1;
+
+        // Move to the next position
+        currentColumn++;
+
+        if (currentColumn >= bottlesPerRow)
         {
-            bottleGraphics[i].transform.position = pos;
-
+            // Move to a new row
+            pos.x = bottleStartPos.x; // Reset to the first column
+            pos.y -= bottleDistance.y; // Move downward for a new row
+            currentColumn = 0;
+        }
+        else
+        {
+            // Move to the right in the same row
             pos.x += bottleDistance.x;
-
-            bottleGraphics[i].index = i;
-
-            //Debug.Log("Spawn");
         }
     }
+}
+
 
     private void ShowBottles()
     {
@@ -226,6 +248,33 @@ public class GameGraphic : MonoBehaviour
 
     }
 
+
+    public IEnumerator UndoMoveAnimation(List<Game.SwitchBallCommand> lastMoves)
+    {
+        for (int i = lastMoves.Count - 1; i >= 0; i--) // ✅ Duyệt ngược để hoàn tác đúng thứ tự
+        {
+            var move = lastMoves[i];
+
+            int fromBottleIndex = move.toBottleIndex;
+            int toBottleIndex = move.fromBottleIndex;
+
+            // ✅ Nâng bóng lên từ bình chứa sai
+            yield return StartCoroutine(MoveBallUp(fromBottleIndex));
+
+            // ✅ Cập nhật dữ liệu: Xóa bóng khỏi bình sai và đưa về bình cũ
+            game.bottles[fromBottleIndex].balls.RemoveAt(game.bottles[fromBottleIndex].balls.Count - 1);
+            game.bottles[toBottleIndex].balls.Add(new Game.Ball { type = move.type });
+
+            // ✅ Đưa bóng xuống bình cũ
+            yield return StartCoroutine(MoveBallDown(toBottleIndex));
+        }
+
+        // ✅ Cập nhật giao diện sau khi hoàn tất Undo
+        RefreshBottleGraphics(game.bottles);
+    }
+
+
+
     private bool isSwitchingBall = false;
     IEnumerator SwitchBallCoroutine(int fromBottleIndex, int toBottleIndex)
     {
@@ -276,13 +325,20 @@ public class GameGraphic : MonoBehaviour
         if (game.CheckWinCondition())
         {
             //Debug.Log("Win 2");
-            GameObject win = Instantiate(winEffect);
+            StartCoroutine(WinGame());
             StartCoroutine(SetGameComplete());
             
         }
     }
     
     int pendingBalls = 0;
+
+    IEnumerator WinGame()
+    {
+        GameObject win = Instantiate(winEffect);
+        yield return new WaitForSeconds(0.5f);
+        Destroy(win);
+    }
 
     private Queue<Vector3> GetCommandPath(Game.SwitchBallCommand command)
     {

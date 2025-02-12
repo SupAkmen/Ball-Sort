@@ -24,6 +24,9 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI rewardBottleCount;
     [SerializeField] private TextMeshProUGUI undoCount;
     [SerializeField] private TextMeshProUGUI currentLevel;
+
+    [SerializeField] private Button restartButton;
+    [SerializeField] private Button undoButton;
     
 
     private void Awake()
@@ -39,15 +42,20 @@ public class UIManager : MonoBehaviour
         ShowMenu();
         HideGame();
         HideLevelComplete();
+
+        GameLevelReader.OnLevelLoaded += UpdateCurrentLevelUI;
+        menuCurrentLevel.text = GameManager.instance.GetLevel().ToString("D2");
         
-        currentLevel.text = GameManager.instance.GetLevel().ToString();
-        
-        GameManager.onGameStateChanged += GameStateChangedCallBack; 
+        GameManager.onGameStateChanged += GameStateChangedCallBack;
+
+        restartButton.onClick.AddListener(GameManager.instance.RestartButtonCallBack);
+        undoButton.onClick.AddListener (() => GameManager.instance.UndoMove());
     }
 
     private void OnDestroy()
     {
         GameManager.onGameStateChanged -= GameStateChangedCallBack;
+        GameLevelReader.OnLevelLoaded -= UpdateCurrentLevelUI;
     }
 
     private void GameStateChangedCallBack(GameState gameState)
@@ -57,6 +65,7 @@ public class UIManager : MonoBehaviour
             case GameState.Menu:
                 ShowMenu();
                 HideGame();
+                menuCurrentLevel.text = GameManager.instance.GetLevel().ToString("D2");
                 break;
             case GameState.Game:
                 ShowGame();
@@ -134,4 +143,8 @@ public class UIManager : MonoBehaviour
 
     #endregion
 
+    private void UpdateCurrentLevelUI(int level)
+    {
+        currentLevel.text = level.ToString("D2");
+    }
 }

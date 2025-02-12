@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using UnityEngine;
@@ -28,10 +28,16 @@ public class BottleGraphic : MonoBehaviour
                 SetGraphic(i, ballTypes[i]);
             }
         }
-    }   
+    }
 
     public void SetGraphic(int index, int type)
     {
+        if (index < 0 || index >= ballGraphics.Length)
+        {
+            Debug.LogError($"SetGraphic: Index {index} out of range (Length: {ballGraphics.Length})");
+            return; // Tránh lỗi truy cập ngoài phạm vi
+        }
+
         ballGraphics[index].SetColor(type);
     }
 
@@ -43,8 +49,14 @@ public class BottleGraphic : MonoBehaviour
 
     public Vector3 GetBallPosition(int index)
     {
+        if (index < 0 || index >= ballGraphics.Length)
+        {
+            //Debug.LogError($"GetBallPosition: Index {index} out of range (Length: {ballGraphics.Length})");
+            return Vector3.zero; // Tránh lỗi bằng cách trả về vị trí mặc định
+        }
         return ballGraphics[index].transform.position;
     }
+
 
     public Vector3 GetBottleUpPosition()
     {

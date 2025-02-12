@@ -17,7 +17,8 @@ public class GameManager : MonoBehaviour
 
     public int currentLevel = 1;
 
-    public GameGraphic game;
+    public GameGraphic gameGraphics;
+    public Game game;
 
     [Header("Settings")]
     public GameState gameState;
@@ -38,7 +39,8 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        game = FindObjectOfType<GameGraphic>();
+        gameGraphics = FindObjectOfType<GameGraphic>();
+        game = FindObjectOfType<Game>();
     }
 
     public void SetGameState(GameState gameState)
@@ -61,17 +63,37 @@ public class GameManager : MonoBehaviour
 
     }
 
-    public void ResetLevel()
-    {
-        game.ClearBottleGraphics();
-    }
-
     public void PlayButtonCallBack()
     {
-        currentLevel = 1;
+        LoadData();
         SetGameState(GameState.Game);
     }
 
+    public void RestartButtonCallBack()
+    {
+        Restart();
+        SetGameState(GameState.Game);
+    }
+
+    public void Restart()
+    {
+        gameGraphics.ClearBottleGraphics();
+        LoadData();
+        
+    }    
+    public void ResetLevel()
+    {
+        gameGraphics.ClearBottleGraphics();
+    }
+
+    public void UndoMove()
+    {
+        if (game != null)
+        {
+            game.UndoMove();
+        }
+    }
+   
     public int GetLevel()
     {
         return currentLevel;

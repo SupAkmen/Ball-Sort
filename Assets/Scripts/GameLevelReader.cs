@@ -1,11 +1,20 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class GameLevelReader : MonoBehaviour
 {
     public Game game;
-
+    public static GameLevelReader instance;
+    public static event Action<int> OnLevelLoaded;
+    private void Awake()
+    {
+        if (instance == null)
+            instance = this;
+        else
+            Destroy(gameObject);
+    }
     private void Start()
     {
         GameManager.onGameStateChanged += GameStateChangedCallBack;
@@ -23,7 +32,6 @@ public class GameLevelReader : MonoBehaviour
             case GameState.Game:
                 Debug.Log("load level" + GameManager.instance.currentLevel);
                 LoadLevelFromResources(GameManager.instance.currentLevel); // Load level hiện tại
-                
                 break;
         }
     }
@@ -44,25 +52,28 @@ public class GameLevelReader : MonoBehaviour
         LoadLevel(textAsset);
 
     }
+    int bottleCount = 0;
+    int ballPerBottle = 0;
+    int currentLevelNumber = 0;
 
     public void LoadLevel(TextAsset textAsset)
     {
         string[] lines = textAsset.text.Split(new string[] { "\n", "\r" }, System.StringSplitOptions.RemoveEmptyEntries);
 
-        int bottleCount = 0;
-        int ballPerBottle = 0;
-
         List<int[]> bottleArrays = new List<int[]>();
 
-        for (int i = 0; i < lines.Length; i++)
+        // Đọc số level hiện tại
+        currentLevelNumber = int.Parse(lines[0]);
+
+        for (int i = 1; i < lines.Length; i++) // Bắt đầu từ dòng 1 (bỏ qua dòng level hiện tại)
         {
             string line = lines[i];
 
-            if (i == 0)
+            if (i == 1) // Dòng thứ hai (index 1) chứa bottleCount và ballPerBottle
             {
-                string[] line0Splits = line.Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries);
-                bottleCount = int.Parse(line0Splits[0]);
-                ballPerBottle = int.Parse(line0Splits[1]);
+                string[] lineSplits = line.Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries);
+                bottleCount = int.Parse(lineSplits[0]);
+                ballPerBottle = int.Parse(lineSplits[1]);
             }
             else
             {
@@ -77,7 +88,25 @@ public class GameLevelReader : MonoBehaviour
         }
 
         game.LoadLevel(bottleArrays);
+        OnLevelLoaded?.Invoke(currentLevelNumber);
+
     }
+
+
+    public int GetBottleCount()
+    {
+        return bottleCount;
+    }
+
+    public int GetBallPerBottle()
+    {
+        return ballPerBottle;
+    }
+    public int GetCurrentLevel()
+    {
+        return currentLevelNumber;
+    }
+
 
     private int CharacterToInt(char c)
     {

@@ -55,7 +55,7 @@ public class Game : MonoBehaviour
             bottles.Add(b);
         }
 
-        //Debug.Log("Load level- game");
+        //Debug.Log("Load level- gameGraphics");
 
             gameGraphic.CreateBottleGraphic(bottles);
         
@@ -88,45 +88,106 @@ public class Game : MonoBehaviour
 
     //}
 
+    private Stack<List<SwitchBallCommand>> moveHistory = new Stack<List<SwitchBallCommand>>();
+
     public void SwitchBall(Bottle bottle1, Bottle bottle2)
     {
         List<Ball> bottle1Ball = bottle1.balls;
         List<Ball> bottle2Ball = bottle2.balls;
 
-        if (bottle1Ball.Count == 0)
+        int maxCapacity = GameLevelReader.instance.GetBallPerBottle(); // 👈 Số bóng tối đa trong bình
+
+        if (bottle1Ball.Count == 0 || bottle2Ball.Count == maxCapacity)
             return;
 
-        if (bottle2Ball.Count == 4)
-            return;
-
-        // bong cao nhat
         int index = bottle1Ball.Count - 1;
         Ball b = bottle1Ball[index];
-
         var type = b.type;
 
-        if(bottle2Ball.Count > 0 && bottle2Ball[bottle2Ball.Count - 1].type != type)
-        {
+        if (bottle2Ball.Count > 0 && bottle2Ball[bottle2Ball.Count - 1].type != type)
             return;
-        }
-        for(int i = index; i >=0; i--)
+
+        int maxMovableBalls = maxCapacity - bottle2Ball.Count; // 👈 Chỉ lấy số bóng có thể di chuyển
+        if (maxMovableBalls == 0) return; // 👈 Không có chỗ để di chuyển, dừng ngay
+
+        List<SwitchBallCommand> moves = new List<SwitchBallCommand>();
+        int targetIndex = bottle2Ball.Count;
+        int movedBalls = 0;
+
+        for (int i = index; i >= 0 && movedBalls < maxMovableBalls; i--) // 👈 Không di chuyển quá giới hạn
         {
             Ball ball = bottle1Ball[i];
-            if(ball.type == type)
+            if (ball.type == type)
             {
-                bottle1Ball.RemoveAt(i);
-                bottle2Ball.Add(b);
+                moves.Add(new SwitchBallCommand
+                {
+                    type = type,
+                    fromBottleIndex = bottles.IndexOf(bottle1),
+                    toBottleIndex = bottles.IndexOf(bottle2),
+                    fromBallIndex = i,
+                    toBallIndex = targetIndex++
+                });
 
-                if(bottle2Ball.Count == 4)
-                {  break; }
-
+                movedBalls++;
             }
             else
             {
                 break;
             }
         }
+
+        if (moves.Count == 0) return; // Nếu không có bóng hợp lệ để di chuyển, dừng ngay
+
+        // Thực hiện di chuyển bóng*
+        for (int i = 0; i < moves.Count; i++)
+        {
+            bottle1Ball.RemoveAt(bottle1Ball.Count - 1);
+            bottle2Ball.Add(new Ball { type = type });
+        }
+
+        moveHistory.Push(moves); //  Lưu thao tác vào Stack để hỗ trợ Undo
+        gameGraphic.RefreshBottleGraphics(bottles);
     }
+
+
+
+
+    public void UndoMove()
+    {
+        if (moveHistory.Count == 0)
+        {
+            Debug.Log("Không có thao tác nào để hoàn tác!");
+            return;
+        }
+
+        List<SwitchBallCommand> lastMoves = moveHistory.Pop();
+
+        gameGraphic.StartCoroutine(gameGraphic.UndoMoveAnimation(lastMoves));
+
+        //for (int i = lastMoves.Count - 1; i >= 0; i--)
+        //{
+        //    var move = lastMoves[i];
+
+        //    Bottle fromBottle = bottles[move.toBottleIndex];
+        //    Bottle toBottle = bottles[move.fromBottleIndex];
+
+        //    if (fromBottle.balls.Count > 0)
+        //    {
+        //        Ball ball = fromBottle.balls[fromBottle.balls.Count - 1];
+
+        //        if (ball.type == move.type)
+        //        {
+        //            fromBottle.balls.RemoveAt(fromBottle.balls.Count - 1);
+        //            toBottle.balls.Add(ball);
+        //        }
+        //    }
+        //}
+
+        //gameGraphic.RefreshBottleGraphics(bottles);
+
+
+    }
+
 
     public void SwitchBall(int bottleIndex1, int bottleIndex2)
     {
@@ -191,7 +252,7 @@ public class Game : MonoBehaviour
         if (bottle1Ball.Count == 0)
             return commands;
 
-        if (bottle2Ball.Count == 4)
+        if (bottle2Ball.Count == GameLevelReader.instance.GetBallPerBottle())
             return commands;
 
         int index = bottle1Ball.Count - 1;
